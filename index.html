@@ -19,7 +19,10 @@
   *{box-sizing:border-box}
   body{margin:0;font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif;
        background:var(--bg);color:var(--ink);line-height:1.6}
-  header{background:var(--navy);color:#fff;padding:18px 24px}
+  header{background:var(--navy);color:#fff;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  header .htxt{min-width:0}
+  #clearbtn{flex:none;background:#fff;color:var(--navy);border:none;border-radius:9px;font-weight:700;font-size:13px;padding:10px 16px;cursor:pointer}
+  #clearbtn:hover{background:#e7eaf3}
   header h1{margin:0;font-size:19px;letter-spacing:.02em}
   header p{margin:4px 0 0;font-size:12px;color:#c8cde6}
   .wrap{max-width:980px;margin:0 auto;padding:22px 18px 60px}
@@ -71,14 +74,17 @@
 </head>
 <body>
 <header>
-  <h1>ゴールドライフオンライン レポート 自動生成ツール</h1>
-  <p>作品名と連載一覧ページURLを入力 → Supabaseから連載データを取得 → テンプレート1ページ目をPowerPointで出力</p>
+  <div class="htxt">
+    <h1>ゴールドライフオンライン レポート 自動生成ツール</h1>
+    <p>作品名と連載一覧ページURLを入力 → Supabaseから連載データを取得 → テンプレート1ページ目をPowerPointで出力</p>
+  </div>
+  <button id="clearbtn" onclick="clearAll()" title="すべての入力・取得結果を消去して次の作品へ">クリア（次の作品へ）</button>
 </header>
 
 <div class="wrap">
 
   <div class="note">
-    <b>注意：</b>このツールにはSupabaseの公開（anon）キーが埋め込まれています。閲覧用の読み取り専用キーですが、<b>このツールのURL/ファイルを社外に共有しないでください</b>。書影・看板画像・判型・出版年月日は「連載一覧ページURL」（および書籍ページURL）から自動取得します。ジャンルのみ毎回手入力してください。
+    <b>注意：</b>このツールにはSupabaseの公開（anon）キーが埋め込まれています。閲覧用の読み取り専用キーですが、<b>このツールのURL/ファイルを社外に共有しないでください</b>。書影・看板画像・判型・出版年月日・ジャンルは「連載一覧ページURL」（カテゴリページ）から自動取得します。自動で入らない場合のみ手入力してください。
   </div>
 
   <!-- INPUT -->
@@ -90,26 +96,20 @@
       <div class="hint">Supabaseの book_title に部分一致で照合します（［注目連載ピックアップ］等は付けても付けなくてもOK）。</div>
     </div>
     <div class="field">
-      <label>連載一覧ページURL</label>
-      <input type="text" id="caturl" placeholder="例：https://renaissance-media.jp/category/gr1812">
-      <div class="hint">記録用。データ取得は作品名で行います。</div>
+      <label>連載一覧ページURL（カテゴリページ）</label>
+      <input type="text" id="caturl" placeholder="例：https://renaissance-media.jp/category/gr1813">
+      <div class="hint">画像・ジャンルの自動取得に使用します。カテゴリページのURL（/category/…）を入れてください。「post.」が付いたURLでもそのまま貼り付けOKです。</div>
     </div>
-    <div class="row">
-      <div class="field">
-        <label>期間 開始日（任意）</label>
-        <input type="date" id="from">
-      </div>
-      <div class="field">
-        <label>期間 終了日（任意）</label>
-        <input type="date" id="to">
-      </div>
+    <div class="field">
+      <label>配信開始日（任意・同作品を複数回配信している場合の絞り込み用）</label>
+      <input type="text" id="startdate" placeholder="例：2025.09.12" style="max-width:260px">
+      <div class="hint">サイトの表記そのまま「2025.09.12」で貼り付けOK（2025/9/12・2025年9月12日も可）。空欄なら最新の配信を表示します。</div>
     </div>
-    <div class="hint" style="margin-top:-6px">期間を空にすると、その作品の全配信回を対象にします。</div>
   </div>
 
   <!-- BOOK INFO -->
   <div class="card">
-    <h2><span class="dot"></span>② 書籍情報（書影・判型・出版年月日はURLから自動取得／ジャンルのみ手入力）</h2>
+    <h2><span class="dot"></span>② 書籍情報（書影・判型・出版年月日・ジャンルを自動取得）</h2>
     <div class="field">
       <label>書籍ページURL（書影・判型・出版年月日の自動取得に使用・任意）</label>
       <input type="text" id="bookurl" placeholder="例：https://renaissance-media.jp/ud/books/63d73defb57622ab22000000">
@@ -124,8 +124,8 @@
       <div class="field"><label>出版年月日（自動反映）</label><input type="text" id="pubdate" placeholder="例：2022/8/5"></div>
     </div>
     <div class="field" style="margin-top:4px;padding-top:12px;border-top:1px dashed var(--line)">
-      <label>ジャンルを入力してください（手入力・自動反映されません）</label>
-      <input type="text" id="genre" placeholder="例：エッセイ／小説" style="max-width:320px">
+      <label>ジャンル（自動反映・修正可）</label>
+      <input type="text" id="genre" placeholder="連載一覧URLから自動取得（例：エッセイ／小説）" style="max-width:320px">
     </div>
   </div>
 
@@ -200,12 +200,57 @@ const JPFONT="Meiryo";
 let current = null; // holds fetched + computed data
 let assets = { cover:null, banner:null }; // {b64,mime,w,h}
 
+function clearAll(){
+  // 入力欄をすべて空に
+  ["title","caturl","startdate","bookurl","hankei","pubdate","genre",
+   "p_period","p_eps","p_glo","p_sn","p_gunosy","p_total","p_toparticle"]
+   .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=""; });
+  // KPI表示リセット
+  ["k_eps","k_glo","k_sn"].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent="-"; });
+  // ステータス表示クリア
+  ["fetchstatus","bookinfostatus","assetstatus"].forEach(id=>{ const el=document.getElementById(id); if(el){ el.textContent=""; el.className="status"; } });
+  // 画像・状態リセット
+  current=null; assets={cover:null,banner:null};
+  ["thumb_cover","thumb_banner"].forEach(id=>{ const im=document.getElementById(id); if(im){ im.src=""; im.style.display="none"; } });
+  const nc=document.getElementById("nocover"); if(nc) nc.style.display="flex";
+  const nb=document.getElementById("nobanner"); if(nb) nb.style.display="flex";
+  // プレビューを閉じる
+  const pv=document.getElementById("preview"); if(pv) pv.classList.remove("show");
+  // 先頭へスクロール＆作品名にフォーカス
+  window.scrollTo({top:0,behavior:"smooth"});
+  const t=document.getElementById("title"); if(t) t.focus();
+}
+
 const fmt = n => (n==null||n==="")?"－":Number(n).toLocaleString("en-US");
 const num = s => { const v=parseInt(String(s).replace(/[^0-9-]/g,""),10); return isNaN(v)?0:v; };
 
 function jpDate(d){ // d: 'YYYY-MM-DD'
   const [y,m,day]=d.split("-").map(Number);
   return `${y}年${m}月${day}日`;
+}
+function normUrl(u){ return String(u||"").trim().replace(/:\/\/post\.renaissance-media\.jp/i, "://renaissance-media.jp"); }
+function parseDateInput(v){
+  if(!v) return null;
+  const s=v.trim().replace(/[.\/年月]/g,'-').replace(/日/g,'');
+  const m=s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(!m) return null;
+  return `${m[1]}-${String(+m[2]).padStart(2,'0')}-${String(+m[3]).padStart(2,'0')}`;
+}
+function dayNum(iso){ return Math.floor(new Date(iso.slice(0,10)+"T00:00:00Z").getTime()/86400000); }
+function groupRuns(rows){
+  const rs=rows.slice().sort((a,b)=> a.published_at<b.published_at?-1:1);
+  const runs=[]; let cur=[];
+  for(const r of rs){
+    if(cur.length){
+      const prev=cur[cur.length-1];
+      const gap=dayNum(r.published_at)-dayNum(prev.published_at);
+      const reset=/第1回|第一回|新連載/.test(r.episode||"");
+      if(gap>20 || reset){ runs.push(cur); cur=[]; }
+    }
+    cur.push(r);
+  }
+  if(cur.length) runs.push(cur);
+  return runs;
 }
 
 async function fetchData(){
@@ -216,18 +261,32 @@ async function fetchData(){
   st.className="status"; st.textContent="取得中…"; btn.disabled=true;
   try{
     const enc = encodeURIComponent(`*${title}*`);
-    let url = `${SUPABASE_URL}/rest/v1/article_monthly_stats`
+    const url = `${SUPABASE_URL}/rest/v1/article_monthly_stats`
       + `?select=episode,article_title,smartnews_pv,glo_pv,published_at`
       + `&book_title=ilike.${enc}`
       + `&order=published_at.asc`;
-    const from = document.getElementById("from").value;
-    const to = document.getElementById("to").value;
-    if(from) url += `&published_at=gte.${from}T00:00:00`;
-    if(to)   url += `&published_at=lte.${to}T23:59:59`;
     const res = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: "Bearer "+SUPABASE_KEY } });
     if(!res.ok){ throw new Error("HTTP "+res.status+" "+(await res.text()).slice(0,160)); }
-    const rows = await res.json();
-    if(!rows.length){ st.className="status err"; st.textContent="該当データが見つかりませんでした。作品名や期間を確認してください。"; btn.disabled=false; return; }
+    const allRows = await res.json();
+    if(!allRows.length){ st.className="status err"; st.textContent="該当データが見つかりませんでした。作品名をご確認ください。"; btn.disabled=false; return; }
+
+    // 配信ごとに分割（20日超の間隔 or 第1回リセットで区切り）
+    const runs = groupRuns(allRows);
+    const startISO = parseDateInput(document.getElementById("startdate").value);
+    let rows, pickNote="", startOverride=null;
+    if(startISO){
+      // 入力日に最も近い配信を選ぶ（サイト表記とDB登録日の1日程度のズレを許容）
+      const target = dayNum(startISO+"T00:00:00Z");
+      let best=null, bestGap=Infinity;
+      for(const run of runs){ const g=Math.abs(dayNum(run[0].published_at)-target); if(g<bestGap){ bestGap=g; best=run; } }
+      if(!best || bestGap>31){ st.className="status err"; st.textContent=`配信開始日 ${startISO} 付近の配信が見つかりませんでした。日付をご確認ください。`; btn.disabled=false; return; }
+      rows = best;
+      startOverride = startISO; // 報告書の「連載開始」には入力した日付（サイト表記）を採用
+      if(bestGap>0) pickNote = `／入力日と登録日が${bestGap}日ずれていたため最も近い配信を採用`;
+    } else {
+      rows = runs[runs.length-1];
+      if(runs.length>1) pickNote = `／${runs.length}件の配信が見つかったため最新のみ表示（配信開始日を入れると絞れます）`;
+    }
 
     let glo=0, sn=0, top=null;
     rows.forEach(r=>{
@@ -236,7 +295,7 @@ async function fetchData(){
       if(!top || c>top.c) top = { c, episode:r.episode||"", title:r.article_title||"" };
     });
     const dates = rows.map(r=>r.published_at.slice(0,10)).sort();
-    const period = `${jpDate(dates[0])}～${jpDate(dates[dates.length-1])}`;
+    const period = `${jpDate(startOverride||dates[0])}～${jpDate(dates[dates.length-1])}`;
 
     current = { eps: rows.length, glo, sn, total: glo+sn, period,
       topEpisode: top.episode||"",
@@ -254,8 +313,8 @@ async function fetchData(){
     document.getElementById("p_total").value = fmt(glo+sn);
     document.getElementById("p_toparticle").value = current.topArticle;
     document.getElementById("preview").classList.add("show");
-    st.className="status ok"; st.textContent = `取得完了（${rows.length}件）`;
-    // 画像も自動取得（連載一覧URLがあれば）
+    st.className="status ok"; st.textContent = `取得完了（${rows.length}件）`+pickNote;
+    // 画像・ジャンルも自動取得（連載一覧URLがあれば）
     if(document.getElementById("caturl").value.trim()) fetchAssets();
   }catch(e){
     let msg = "エラー：" + e.message;
@@ -269,7 +328,7 @@ async function fetchData(){
 async function fetchBookInfo(){
   const st=document.getElementById("bookinfostatus");
   const btn=document.getElementById("bookbtn");
-  const burl=document.getElementById("bookurl").value.trim();
+  const burl=normUrl(document.getElementById("bookurl").value.trim());
   if(!burl){ st.className="status err"; st.textContent="書籍ページURLを入力してください。"; return; }
   if(!/\/ud\/books\//.test(burl)){ st.className="status err"; st.textContent="書籍ページURL（/ud/books/…）の形式で入力してください。"; return; }
   st.className="status"; st.textContent="取得中…"; btn.disabled=true;
@@ -311,10 +370,10 @@ async function fetchAssets(){
       method:"POST",
       headers:{ "Content-Type":"application/json", apikey:SUPABASE_KEY, Authorization:"Bearer "+SUPABASE_KEY },
       body: JSON.stringify({
-        category_url: caturl,
+        category_url: normUrl(caturl),
         episode: current ? current.topEpisode : "",
         article_title: current ? current.topArticle : "",
-        book_url: document.getElementById("bookurl").value.trim()
+        book_url: normUrl(document.getElementById("bookurl").value.trim())
       })
     });
     const data=await res.json();
@@ -323,6 +382,7 @@ async function fetchAssets(){
       if(data.book_info.hankei) document.getElementById("hankei").value=data.book_info.hankei;
       if(data.book_info.pubdate) document.getElementById("pubdate").value=data.book_info.pubdate;
     }
+    if(data.genre){ document.getElementById("genre").value=data.genre; }
     if(data.cover && data.cover.b64){
       assets.cover=data.cover;
       const im=document.getElementById("thumb_cover");
@@ -336,7 +396,8 @@ async function fetchAssets(){
       document.getElementById("nobanner").style.display="none";
     }
     const got=[assets.cover?"書影":null, assets.banner?"看板画像":null,
-      (data.book_info&&(data.book_info.hankei||data.book_info.pubdate))?"判型・出版年月日":null].filter(Boolean);
+      (data.book_info&&(data.book_info.hankei||data.book_info.pubdate))?"判型・出版年月日":null,
+      data.genre?"ジャンル":null].filter(Boolean);
     const noteTxt = (data.notes && data.notes.length) ? "／" + data.notes.join("、") : "";
     if(got.length>=3){ st.className="status ok"; st.textContent="取得完了："+got.join("・"); }
     else if(got.length>=1){ st.className="status ok"; st.textContent="取得："+got.join("・")+noteTxt; }
